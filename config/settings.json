@@ -1,0 +1,119 @@
+{
+  "base_url": "https://app.pinclicks.com",
+  "browser": {
+    "channel": "chrome",
+    "headless": false,
+    "maximized": true,
+    "start_minimized": true,
+    "_start_minimized_why": "The scraping window cannot be headless (Cloudflare returns 403), so it is minimised to the taskbar the moment it launches and never pops up on screen. Sign-in is the exception -- that window is raised so you can type in it, then minimised again. Windows only.",
+    "window_position": null
+  },
+  "sites": [
+    "ardeloprints.com",
+    "bitespoon.com",
+    "helergon.com",
+    "longlivo.com",
+    "treasurebarrel.com",
+    "chocofeverdream.com"
+  ],
+  "site_default_value": "go",
+  "status_default_value": "go",
+  "pins_per_keyword_default": 50,
+  "pins_per_keyword_min": 10,
+  "pins_per_keyword_max": 100,
+  "_pins_depth_why": "50 by default. Measured after the nudge fix: 98 pins for 'fruit pizza' in 48s wall clock, 12s of which was loading. Depth is cheap now, so the old 21-pin default (chosen when 50 cost ~6 minutes) no longer applies. Many pins below the top ~50 are low value anyway.",
+  "level3_filters": {
+    "_why": "Keyword Explorer checkboxes controlling which keywords L3 returns. Only 'interests' is on by default in PinClicks. Turning on search_suggestions is the likely source of long-tail terms like 'Fruit Pizza' / 'Dominos Pizza'.",
+    "interests": true,
+    "search_suggestions": false,
+    "related_interests": false,
+    "taxonomy": false
+  },
+  "pacing": {
+    "action_delay_min_ms": 1500,
+    "action_delay_max_ms": 4000,
+    "keywords_per_hour_cap": 60,
+    "keyword_gap_min_ms": 4000,
+    "keyword_gap_max_ms": 9000,
+    "_why": "Sequential and jittered is the entire anti-block strategy; there is no parallelism to tune. keyword_gap_* spaces out whole keywords in a bulk run -- back-to-back keywords with no gap is a burst that does not look like a person, and that is how the IP got blocked by Cloudflare."
+  },
+  "timeouts": {
+    "element_ms": 5000,
+    "step_ms": 45000,
+    "navigation_ms": 45000,
+    "heartbeat_stall_ms": 120000,
+    "watchdog_poll_ms": 10000
+  },
+  "retry": {
+    "max_attempts": 3,
+    "backoff_seconds": [
+      3,
+      6,
+      12
+    ],
+    "max_heals_per_keyword": 3
+  },
+  "scroll": {
+    "loading_banner_text": "Getting more pins",
+    "nudge_after_ms": 3000,
+    "total_budget_ms": 180000,
+    "post_load_settle_ms": 3000,
+    "_why": [
+      "MEASURED on 'fruit pizza' from a 23-pin start:",
+      "  park  (scroll to bottom, wait)   48 pins in 48.6s",
+      "  bounce(large up/down)            73 pins in 16.0s",
+      "  nudge (small up/down)            73 pins in  8.4s",
+      "",
+      "A lazy-loader fires when its sentinel ENTERS the viewport, not while",
+      "it sits there. Parking at the bottom keeps it permanently intersecting",
+      "so it never fires again -- that is why waiting did nothing for 300s.",
+      "The nudge moves away and back, re-triggering it."
+    ],
+    "nudge_distance_px": 600,
+    "give_up_after_ms": 20000,
+    "close_enough_after_ms": 6000,
+    "exhausted_after_ms": 7000,
+    "_thin_keywords": "Keywords with few pins must not cost a full stall budget. If the 'Getting more pins' banner is NOT showing and nothing new has arrived for exhausted_after_ms, the keyword is out of pins and we stop immediately. give_up_after_ms only applies while the banner IS showing, i.e. a genuine stuck fetch.",
+    "settle_quiet_ms": 3000,
+    "settle_max_ms": 20000,
+    "_settle_why": "After loading stops, PinClicks can still have a batch in flight. Reading straight away captured 48 pins when the page ended up with 73. Wait for the row count to hold steady for settle_quiet_ms (capped at settle_max_ms) before extracting."
+  },
+  "quality": {
+    "suspect_na_ratio": 0.3
+  },
+  "checkpoint": {
+    "flush_every_pins": 5
+  },
+  "auto_open_browser": true,
+  "port": 8756,
+  "browse_cache_seconds": 86400,
+  "_browse_cache_why": "How long cached niches/sub-niches/keywords stay fresh. Browsing the tree re-visits the same levels constantly and each fetch costs 20-30s of real scraping, so results are cached and Back is instant. Interest trees and keyword volumes barely move day to day, hence 24h. The Refresh button always bypasses this.",
+  "language_filter": {
+    "_why": "PinClicks returns keywords in every language Pinterest has data for. Keep is a list of language codes; 'all' disables filtering. This does NOT use a language detector -- detectors are badly wrong on 1-2 word keywords (they called 'Fruit' Dutch and 'Pasta Recipes' Portuguese), so it keeps by default and excludes only on clear evidence: non-Latin script, letters English lacks, or known foreign words.",
+    "enabled": true,
+    "keep": [
+      "en"
+    ],
+    "_keep": "Language codes to keep: en ar zh nl fr de el he hi id it ja ko pl pt ru es th tr -- or 'all'. Non-Latin ones (ar, ru, hi, zh, ja, ko, th, he, el) are exact because the alphabet gives them away. Latin ones (es, pt, de, fr, it, tr, id, nl, pl) are approximate: they rely on accents and common words, so a short keyword with neither may be read as English.",
+    "extra_foreign_words": [],
+    "_extra_foreign_words": "Your own words to exclude, e.g. ['aesthetic','wallpaper'].",
+    "_note": "No longer switchable from the UI -- the dropdown was removed on request. Change 'keep' here and restart to use a different language."
+  },
+  "ai": {
+    "base_url": "https://ollama.com",
+    "model": "gpt-oss:120b-cloud",
+    "temperature": 0,
+    "timeout_seconds": 120,
+    "key_cooldown_seconds": 60,
+    "key_attempts": 4,
+    "_keys_why": "Keys live in config/secrets.json, added from the Settings screen. The pool rotates round-robin. A rate-limited key rests for key_cooldown_seconds then returns; a rejected key (401/403) is disabled for the session since retrying a bad key only wastes calls. key_attempts is how many different keys one request may try before giving up.",
+    "batch_size": 15,
+    "batch_attempts": 3,
+    "batch_backoff_seconds": [
+      5,
+      20,
+      60
+    ],
+    "_batch_why": "A batch that fails is retried, not skipped. Failures are usually every key being rate limited at the same instant, which passes within seconds. Skipping would silently leave pins unjudged in a run of thousands."
+  }
+}

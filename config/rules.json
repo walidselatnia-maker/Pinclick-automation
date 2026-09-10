@@ -1,0 +1,49 @@
+{
+  "_comment": [
+    "Phase-2 pin filtering rules.",
+    "",
+    "Two stages. Deterministic rules run first and are exact -- they decide",
+    "facts about the data, so they cannot be wrong and cost nothing. The AI",
+    "stage only sees pins the deterministic rules could not settle, which is",
+    "where real judgement is needed (is this actually about the niche? is it a",
+    "real specific recipe?).",
+    "",
+    "Filtering runs against pins already stored locally, so changing anything",
+    "here and re-filtering costs no scraping."
+  ],
+  "deterministic": {
+    "drop_duplicates": true,
+    "_drop_duplicates": "Rule 1. Keyed on pin_url, falling back to title+image_url when the URL is missing.",
+    "require_title_or_description": true,
+    "_require_title_or_description": "Rule 2. Reject only when BOTH are empty; one of the two is enough.",
+    "drop_listicles": true,
+    "_drop_listicles": "Rule 3. Regex catches a leading count -- '25 Recipes For...', 'Top 10 Best Chicken Dinners', '15+ Easy Ideas'. Anchored near the start so a single recipe containing a number ('Chicken 65') survives. The AI stage catches phrasings the regex misses.",
+    "min_saves": 0,
+    "_min_saves": "Reject pins under this many saves. 0 disables. Saves are the strongest popularity signal PinClicks gives.",
+    "min_pin_score": 0,
+    "_min_pin_score": "Reject pins under this pin score. 0 disables.",
+    "drop_duplicate_titles": true,
+    "_drop_duplicate_titles": "Rule 1, second half. Different pin URLs often carry identical content re-pinned by different users -- measured 13 such pairs in a 110-pin set. Pins are ranked by saves before deduplication, so the surviving copy is the best performing one. Set false to keep every distinct pin URL.",
+    "drop_other_languages": true,
+    "_drop_other_languages": "Reject pins whose title AND description are both in another language. A foreign title with an English description is kept, since the description is what gets reused. Uses the same language setting as the keyword filter (config/settings.json -> language_filter.keep)."
+  },
+  "ai": {
+    "enabled": true,
+    "_enabled": "Rule 4: niche relevance. Needs an Ollama Cloud API key -- see config/secrets.example.json. With no key, surviving pins are marked 'unreviewed' rather than silently accepted.",
+    "reject_off_niche": true,
+    "reject_non_specific": true,
+    "_reject_non_specific": "Drop pins that are food-adjacent but not an actual recipe: food photography, restaurant marketing, kitchen gadgets, diet commentary."
+  },
+  "keyword_filters": {
+    "_comment": "Level-3 keyword filters, applied before any pins are fetched. Separate from the pin rules above.",
+    "min_volume": 0,
+    "max_volume": null,
+    "negative_words": []
+  },
+  "sort": {
+    "_comment": "How surviving pins are ordered in the review table and the CSV.",
+    "by": "saves_count",
+    "_by": "saves_count | pin_score | position. saves_count is real audience behaviour; pin_score is PinClicks' own metric; position is PinClicks' own ranking (1 = best).",
+    "descending": true
+  }
+}

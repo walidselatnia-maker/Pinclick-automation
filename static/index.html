@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PinClicks Mining Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<!-- ============================================ sidebar -->
+<aside class="rail">
+  <div class="brand">
+    <b>PinClicks<i>.</i></b>
+    <span>Niche &amp; content mining</span>
+  </div>
+
+  <nav>
+    <button data-screen="s1" data-step="1" class="active">Session</button>
+    <button data-screen="s2" data-step="2">Research</button>
+    <button data-screen="s4" data-step="3">Scraping</button>
+    <button data-screen="s5" data-step="4">Review &amp; export</button>
+    <button data-screen="s3" data-step="5">Manual search</button>
+    <button data-screen="s6" data-step="&#183;">Settings</button>
+  </nav>
+
+  <div class="rail-foot">
+    <span class="pill unknown" id="session-badge">Unknown</span>
+    <span class="run" id="run-label">no active run</span>
+  </div>
+</aside>
+
+<!-- ============================================ main -->
+<main>
+  <div class="topbar">
+    <h1 id="page-title">Session</h1>
+    <span class="sub" id="page-sub">Sign in to PinClicks once; the app remembers it.</span>
+    <span class="spacer"></span>
+    <div class="row" id="page-actions"></div>
+  </div>
+
+  <div id="global-banner" class="banner"></div>
+
+  <div class="body">
+
+    <!-- ---------------------------------------- 1 · Session -->
+    <section id="s1" class="screen active">
+      <div class="card">
+        <h3>PinClicks sign-in</h3>
+        <p class="sub">
+          A Chrome window opens and you sign in there yourself. The app never
+          sees or stores your password &mdash; only the browser session is kept,
+          so you stay signed in between runs.
+        </p>
+        <div class="row">
+          <span class="pill unknown" id="session-badge-lg">Unknown</span>
+          <span class="spacer"></span>
+          <button class="btn ghost" id="btn-check-session">Re-check</button>
+          <button class="btn" id="btn-login">Open sign-in window</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Your sites</h3>
+        <p class="sub">One per line. These become the columns at the end of the exported CSV.</p>
+        <textarea id="sites-input" rows="6" style="width:100%;font-family:var(--mono);font-size:12px"></textarea>
+        <div class="row" style="margin-top:12px">
+          <span class="spacer"></span>
+          <button class="btn ghost" id="btn-save-sites">Save sites</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------- 2 · Research -->
+    <section id="s2" class="screen">
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn" id="btn-discover">Load niches</button>
+        <button class="btn quiet" id="btn-refresh-level"
+                title="Re-fetch this level instead of using the saved copy">Refresh</button>
+        <div class="trail" id="board-crumb"></div>
+      </div>
+
+      <div class="board">
+        <div class="col">
+          <div class="col-head">
+            <h3>Niches</h3><span class="count" id="c1-count"></span>
+          </div>
+          <div class="col-body" id="c1-body">
+            <div class="col-empty">Press &ldquo;Load niches&rdquo; to begin.</div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="col-head">
+            <h3>Sub-niches</h3><span class="count" id="c2-count"></span>
+          </div>
+          <div class="col-body" id="c2-body">
+            <div class="col-empty">Choose a niche.</div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="col-head">
+            <h3>Keywords</h3>
+            <label class="field-mini"><input type="checkbox" id="kw-all"> all</label>
+            <label class="field-mini">over
+              <input type="number" id="kw-min" class="head-num" placeholder="0" min="0"></label>
+            <span class="count" id="c3-count"></span>
+          </div>
+          <div class="col-body" id="c3-body">
+            <div class="col-empty">Choose a sub-niche.</div>
+          </div>
+          <div class="col-foot">
+            <label class="field-mini">pins each
+              <input type="number" id="kw-depth" class="head-num" value="50"
+                     min="10" max="100"></label>
+            <span class="tally" id="kw-selected">0 selected</span>
+            <button class="btn" id="btn-scrape-selected" disabled>Scrape pins</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------- 3 · Scraping -->
+    <section id="s4" class="screen">
+      <div class="card">
+        <h3>Progress</h3>
+        <p class="sub" id="progress-label">Idle.</p>
+        <div class="progress"><i id="progress-bar"></i></div>
+        <div class="row" style="margin-top:14px">
+          <span class="hint">A keyword that fails is skipped, never fatal to the run.</span>
+          <span class="spacer"></span>
+          <button class="btn ghost" id="btn-pause">Pause</button>
+          <button class="btn ghost" id="btn-stop">Stop</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Activity</h3>
+        <p class="sub">Live log for the current run.</p>
+        <div class="log" id="run-log">Nothing yet.</div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------- 4 · Review & export -->
+    <section id="s5" class="screen">
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn ghost" id="btn-refilter">Re-run filters</button>
+        <button class="btn" id="btn-export">Export CSV</button>
+        <a id="dl-rejected" class="btn quiet" style="display:none" download>Download rejects</a>
+        <input type="search" id="review-search" placeholder="Search title or keyword"
+               style="width:200px">
+        <span class="spacer"></span>
+        <span class="hint">Rules live in <code>config/rules.json</code>.</span>
+      </div>
+
+      <!-- Filter and bulk-action bar, directly above the two columns. -->
+      <div class="filterbar">
+        <label class="field-mini">saves &ge;
+          <input type="number" id="rv-min-saves" class="mini-num" placeholder="0" min="0"></label>
+        <label class="field-mini">score &ge;
+          <input type="number" id="rv-min-score" class="mini-num" placeholder="0" min="0"></label>
+        <label class="field-mini">sort
+          <select id="rv-sort" class="mini-num" style="width:auto">
+            <option value="saves_count">saves</option>
+            <option value="pin_score">score</option>
+            <option value="position">position</option>
+          </select></label>
+
+        <span class="divider"></span>
+
+        <label class="field-mini"><input type="checkbox" id="rv-select-all"> select all shown</label>
+        <span class="tally" id="rv-selected">0 selected</span>
+        <button class="btn quiet" id="rv-accept">Move to accepted</button>
+        <button class="btn quiet" id="rv-reject">Move to rejected</button>
+
+        <span class="spacer"></span>
+        <span class="hint" id="rv-showing"></span>
+      </div>
+
+      <div class="board two">
+        <div class="col">
+          <div class="col-head">
+            <h3>Accepted</h3><span class="count" id="accepted-count"></span>
+          </div>
+          <div class="col-body" id="accepted-body">
+            <div class="col-empty">Scrape some pins, then run the filters.</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-head">
+            <h3>Rejected</h3>
+            <select id="rv-reason" class="head-select" title="Filter by why it was rejected">
+              <option value="">all reasons</option>
+            </select>
+            <span class="hint" id="rv-reason-count"></span>
+            <span class="count" id="rejected-count"></span>
+          </div>
+          <div class="col-body" id="rejected-body">
+            <div class="col-empty">Nothing rejected yet.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------- 5 · Manual search -->
+    <section id="s3" class="screen">
+      <div class="card">
+        <h3>Search a keyword directly</h3>
+        <p class="sub">
+          For when you already know the keyword and don't want to walk the niche
+          tree. Everything here also works from Research.
+        </p>
+        <div class="row">
+          <input type="text" id="l2-main" placeholder="e.g. pizza" style="flex:1;min-width:240px">
+          <button class="btn" id="btn-get-keywords">Get keywords</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Filters</h3>
+        <div class="row">
+          <label class="field-mini">min volume
+            <input type="number" id="f-min" class="mini-num" value="0" min="0"></label>
+          <label class="field-mini">max volume
+            <input type="number" id="f-max" class="mini-num" placeholder="none" min="0"></label>
+          <input type="text" id="f-negative" placeholder="Excluded words, comma separated"
+                 style="flex:1;min-width:220px">
+          <button class="btn ghost" id="btn-apply-filters">Apply</button>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label class="field-mini">preset
+            <select id="preset-select"><option value="">none</option></select></label>
+          <button class="btn quiet" id="btn-load-preset">Load</button>
+          <button class="btn quiet" id="btn-save-preset">Save as&hellip;</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:12px">
+          <h3 style="margin:0">Keywords</h3>
+          <span class="spacer"></span>
+          <label class="field-mini">pins each
+            <input type="range" id="depth-slider" min="10" max="100" value="50"
+                   style="width:130px">
+            <b id="depth-value" class="num" style="min-width:28px">50</b></label>
+          <span class="hint" id="l2-count"></span>
+          <button class="btn" id="btn-scrape">Scrape pins</button>
+        </div>
+        <table id="l2-table">
+          <thead>
+            <tr>
+              <th style="width:34px"><input type="checkbox" id="l2-check-all"></th>
+              <th>Keyword</th>
+              <th class="num" style="width:120px">Volume</th>
+              <th style="width:170px">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" class="empty">Enter a keyword above and press Get keywords.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+
+    <!-- ---------------------------------------- Settings -->
+    <section id="s6" class="screen">
+      <div class="card">
+        <h3>Ollama API keys</h3>
+        <p class="sub">
+          Used to judge whether a pin really belongs to the niche. Add several:
+          the app rotates through them, so when one hits its rate limit the run
+          moves to the next instead of stopping. Keys are stored on this
+          machine only, in <code>config/secrets.json</code>.
+        </p>
+
+        <div id="key-list"></div>
+
+        <div class="row" style="margin-top:12px">
+          <input type="password" id="key-value" placeholder="Paste one API key"
+                 style="flex:1;min-width:240px" autocomplete="off">
+          <input type="text" id="key-label" placeholder="Label (optional)"
+                 style="width:150px">
+          <button class="btn ghost" id="btn-add-key">Add</button>
+        </div>
+
+        <details style="margin-top:14px">
+          <summary class="hint" style="cursor:pointer">Add many keys at once</summary>
+          <p class="sub" style="margin:10px 0 8px">
+            One key per line. Add <code>, label</code> after a key to name it.
+            Blank lines and duplicates are ignored.
+          </p>
+          <textarea id="key-bulk" rows="6" spellcheck="false"
+                    placeholder="sk-aaa..., work&#10;sk-bbb..., backup&#10;sk-ccc..."
+                    style="width:100%;font-family:var(--mono);font-size:12px"></textarea>
+          <div class="row" style="margin-top:10px">
+            <label class="btn quiet" style="cursor:pointer">
+              Load from file
+              <input type="file" id="key-file" accept=".txt,.csv,.json"
+                     style="display:none">
+            </label>
+            <span class="spacer"></span>
+            <button class="btn ghost" id="btn-add-bulk">Add all</button>
+          </div>
+        </details>
+
+        <div class="row" style="margin-top:14px">
+          <span class="hint" id="key-summary">No keys yet.</span>
+          <span class="spacer"></span>
+          <button class="btn" id="btn-test-keys">Test keys</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>How rotation behaves</h3>
+        <p class="sub" style="margin:0">
+          Rate limited &rarr; that key rests for a minute, then rejoins.<br>
+          Rejected &rarr; that key is set aside for the session.<br>
+          All resting &rarr; the run waits for the first one to wake, rather
+          than failing part-way through your keywords.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

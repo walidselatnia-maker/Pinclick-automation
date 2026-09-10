@@ -1,0 +1,14 @@
+# Browser profile: contains your PinClicks session cookies. Never commit.
+user_data/
+
+.venv/
+__pycache__/
+*.pyc
+
+data/
+exports/
+logs/
+debug/
+
+*.tmp
+config/secrets.json

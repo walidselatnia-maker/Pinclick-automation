@@ -1,0 +1,191 @@
+{
+  "_README": [
+    "Every PinClicks DOM selector lives here. NOTHING is hardcoded in Python.",
+    "When PinClicks changes its markup, you fix this file only -- no code changes.",
+    "",
+    "Each entry:",
+    "  primary   : the selector to try first",
+    "  fallbacks : tried in order if primary finds nothing",
+    "  required  : true  -> preflight refuses to run if this cannot be found",
+    "              false -> missing value becomes 'N/A' and the scrape continues",
+    "  attr      : optional; read this attribute instead of the text content",
+    "",
+    "PinClicks is a Laravel Livewire app (wire:model / wire:submit attributes).",
+    "That means server-rendered HTML updated over AJAX, and NO data-testid hooks.",
+    "Prefer stable anchors: element ids, wire:model names, and href patterns.",
+    "Avoid Tailwind utility classes -- they change with any restyle.",
+    "",
+    "STATUS: 'auth' and 'urls' are VERIFIED against the live site (2026-09-06).",
+    "'level1', 'level2' and 'pins' are still PLACEHOLDERS -- they sit behind the",
+    "login wall and cannot be written until an authenticated capture is taken.",
+    "Log in via Screen 1, then press Calibrate to capture them."
+  ],
+
+  "_calibrated": false,
+  "_calibrated_at": null,
+
+  "urls": {
+    "login": "/login",
+    "dashboard": "/keyword-explorer",
+    "keywords": "/keyword-explorer",
+    "top_pins": "/pins",
+    "_routes": "VERIFIED sidebar routes: /keyword-explorer, /link-explorer, /pins (Top Pins), /stats, /saved, /rankings, /searches, /saved-keywords, /accounts, /settings, /billing, /logout. A single keyword drills down to /keyword/{slug}/{pinterest_id}.",
+    "_note": "VERIFIED: /keyword-explorer is where PinClicks lands you after login, and it is protected (redirects to /login when logged out) which makes it the correct session-probe target. /dashboard is a 404 -- do not use it."
+  },
+
+  "auth": {
+    "logged_in_marker": {
+      "primary": "a[href*='logout']",
+      "fallbacks": ["form[action*='logout']", "button:has-text('Log out')"],
+      "required": true,
+      "_status": "UNVERIFIED - needs an authenticated capture"
+    },
+    "logged_out_marker": {
+      "primary": "input#password",
+      "fallbacks": ["input[type='password']", "form[wire\\:submit='login()']"],
+      "required": true,
+      "_status": "VERIFIED against the live login page"
+    }
+  },
+
+  "_level1_note": "Level 1 = the 'Interests' panel on /keyword-explorer. Each interest is a <label for='filter-{ID}'> holding a checkbox, the name, the volume, and a drill-down button wire:click=setTopInterest('{ID}'). The ID is Pinterest's own interest id and is stable.",
+
+  "level1": {
+    "search_input": {
+      "primary": "input[wire\\:model='search']",
+      "fallbacks": ["input[placeholder*='Search any keyword' i]", "input[type='search']"],
+      "required": true
+    },
+    "interest_row": {
+      "primary": "label[for^='filter-']",
+      "fallbacks": [".top-interest-filter"],
+      "required": true,
+      "multiple": true
+    },
+    "row_name": {
+      "primary": "div:first-of-type",
+      "fallbacks": ["div"],
+      "required": true
+    },
+    "row_volume": {
+      "primary": "button[wire\\:click^='setTopInterest'] span",
+      "fallbacks": ["span.opacity-40"],
+      "required": true
+    },
+    "drill_down": {
+      "primary": "button[wire\\:click^='setTopInterest']",
+      "fallbacks": [],
+      "required": true
+    },
+    "row_checkbox": {
+      "primary": "input.top-interest-filter",
+      "fallbacks": ["input[type='checkbox'][id^='filter-']"],
+      "required": false
+    }
+  },
+
+  "_level2_note": "Level 2 = the Filament results table. Rows carry data-key={pinterest id}. The keyword cell links to /keyword/{keyword}/{id}, which is also the drill-down URL. Sortable columns are 'label' and 'search_volume'. NOTE: this table PAGINATES (wire:click=gotoPage(N,'tablePage')) -- it does not infinite-scroll.",
+
+  "level2": {
+    "results_table": {
+      "primary": "table tbody",
+      "fallbacks": ["[role='table']"],
+      "required": true
+    },
+    "row": {
+      "primary": "tr[data-key]",
+      "fallbacks": ["tbody tr"],
+      "required": true,
+      "multiple": true
+    },
+    "row_keyword": {
+      "primary": "a[href^='/keyword/']",
+      "fallbacks": ["a.underline"],
+      "required": true
+    },
+    "row_keyword_href": {
+      "primary": "a[href^='/keyword/']",
+      "attr": "href",
+      "fallbacks": [],
+      "required": true
+    },
+    "row_volume": {
+      "primary": "td:nth-child(4)",
+      "fallbacks": ["td:nth-child(3)"],
+      "required": true,
+      "_status": "UNVERIFIED column index - confirm against a live table"
+    },
+    "sort_by_volume": {
+      "primary": "button[wire\\:click*='sortTable(\\'search_volume\\'']",
+      "fallbacks": ["th:has-text('Volume') button"],
+      "required": false
+    },
+    "next_page": {
+      "primary": "button[wire\\:click=\"nextPage('tablePage')\"]",
+      "fallbacks": ["button[wire\\:click^='nextPage']"],
+      "required": false
+    },
+    "export_action": {
+      "primary": "button[wire\\:click=\"mountTableBulkAction('export')\"]",
+      "fallbacks": ["button[wire\\:click*='mountTableBulkAction(\\'export\\'']"],
+      "required": false,
+      "_note": "PinClicks' own bulk Export. May remove the need to scrape this table at all."
+    }
+  },
+
+  "pins": {
+    "see_top_pins": {
+      "primary": "a:has-text('Top Pins')",
+      "fallbacks": ["button:has-text('See Top Pins')", "a[href*='pins']"],
+      "required": true
+    },
+    "grid": {
+      "primary": "[data-testid='pin-grid']",
+      "fallbacks": [".pin-grid", "main .grid"],
+      "required": true
+    },
+    "card": {
+      "primary": "[data-testid='pin-card']",
+      "fallbacks": [".pin-card", "article"],
+      "required": true
+    },
+    "title": {
+      "primary": "[data-field='title']",
+      "fallbacks": ["h3", "h2", ".pin-title"],
+      "required": true
+    },
+    "pin_url": {
+      "primary": "a[href*='pinterest.com/pin']",
+      "fallbacks": ["a[href*='/pin/']"],
+      "attr": "href",
+      "required": true
+    },
+    "image_url": {
+      "primary": "img",
+      "fallbacks": ["[style*='background-image']"],
+      "attr": "src",
+      "required": false
+    },
+    "description": {
+      "primary": "[data-field='description']",
+      "fallbacks": ["p", ".pin-description"],
+      "required": false
+    },
+    "pin_score": {
+      "primary": "[data-field='score']",
+      "fallbacks": [".pin-score", "[title*='score' i]"],
+      "required": false
+    },
+    "saves_count": {
+      "primary": "[data-field='saves']",
+      "fallbacks": [".saves", "[title*='save' i]"],
+      "required": false
+    },
+    "annotations": {
+      "primary": "[data-field='annotations'] li",
+      "fallbacks": [".annotations .tag", ".annotation"],
+      "required": false,
+      "multiple": true
+    }
+  }
+}

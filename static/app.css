@@ -1,0 +1,747 @@
+/* =====================================================================
+   PinClicks Mining Tool
+
+   Built as an instrument someone uses for hours, not a dashboard someone
+   glances at. Decisions worth knowing:
+
+   - NEUTRAL dark ground, not navy. The previous theme was saturated blue
+     (#0F172A) and the user said it hurt to look at. Blue light at low
+     luminance is the tiring part, so the ground here is near-black with a
+     trace of warmth and no blue cast.
+
+   - The sidebar is numbered because the workflow really is a sequence: you
+     cannot research before signing in, or export before scraping. Numbering
+     encodes that order rather than decorating it.
+
+   - ONE accent (PinClicks red) marks where you are and what acts. Nothing
+     else competes for attention.
+
+   - Numbers are monospaced and tabular everywhere. Comparing search volumes
+     down a column is the core act of the whole tool.
+   ===================================================================== */
+
+:root {
+  --bg:        #0E0E10;
+  --rail:      #131316;
+  --panel:     #17171B;
+  --panel-2:   #1D1D22;
+  --raised:    #232329;
+  --line:      #2A2A31;
+  --line-soft: #202026;
+
+  --text:      #EDEDEF;
+  --dim:       #9C9CA6;
+  --faint:     #6B6B76;
+
+  --brand:     #E60023;
+  --brand-lift:#FF3B54;
+  --ok:        #3FB950;
+  --warn:      #D29922;
+
+  --sans: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  --r: 8px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Links never render in browser blue -- that colour on a dark ground is
+   exactly what was reported as painful. Clickable text uses the normal
+   colour and signals itself by underlining on hover. */
+a, a:link, a:visited, a:active { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ===================================================== sidebar */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  background: var(--rail);
+  border-right: 1px solid var(--line);
+  min-height: 0;
+}
+
+.brand {
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.brand b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.brand b i {
+  font-style: normal;
+  color: var(--brand);
+}
+.brand span {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+nav {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+nav button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+/* The step number is data, so it is set in the mono face like every other
+   figure in the app. */
+nav button::before {
+  content: attr(data-step);
+  flex: none;
+  width: 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  text-align: center;
+}
+
+nav button:hover { background: var(--panel); color: var(--text); }
+
+nav button.active {
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 500;
+}
+nav button.active::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--brand);
+}
+nav button.active::before { color: var(--brand); }
+
+.rail-foot {
+  margin-top: auto;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rail-foot .run { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+
+/* ===================================================== main */
+
+main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.topbar .sub {
+  font-size: 12px;
+  color: var(--faint);
+}
+.topbar .spacer { flex: 1; }
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen { display: none; }
+/* Flex column so the board can claim whatever height is left, instead of a
+   hard-coded calc() that leaves dead space when the header changes size. */
+.screen.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ===================================================== banner */
+
+#global-banner {
+  display: none;
+  margin: 0 24px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--dim);
+  border-radius: var(--r);
+  background: var(--panel);
+  color: var(--dim);
+  font-size: 12.5px;
+}
+#global-banner.show  { display: block; }
+#global-banner.info  { border-left-color: var(--brand); color: var(--text); }
+#global-banner.warn  { border-left-color: var(--warn);  color: var(--text); }
+#global-banner.error { border-left-color: var(--brand); color: var(--text); }
+
+/* ===================================================== controls */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--r);
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 110ms ease;
+}
+.btn:hover:not(:disabled) { background: var(--brand-lift); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.btn.ghost:hover:not(:disabled) { background: var(--panel-2); }
+
+.btn.quiet {
+  background: transparent;
+  color: var(--dim);
+  padding: 8px 10px;
+}
+.btn.quiet:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+
+input[type="text"], input[type="number"], input[type="search"], select, textarea {
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+input::placeholder { color: var(--faint); }
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.mini-num {
+  width: 74px;
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+input[type="number"].mini-num { min-width: 0; }
+
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.hint { font-size: 12px; color: var(--faint); }
+
+.card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  margin-bottom: 14px;
+}
+.card h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.card p.sub {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--dim);
+}
+.pill::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pill.active  { color: var(--ok); }
+.pill.expired { color: var(--brand); }
+.pill.unknown { color: var(--faint); }
+.pill.warning { color: var(--warn); }
+
+/* ===================================================== columns */
+
+.board {
+  display: grid;
+  gap: 1px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 360px;
+  grid-template-columns: 1fr 1fr 1.15fr;
+}
+.board.two { grid-template-columns: 1fr 1fr; }
+
+.col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;          /* or the list grows the page instead of scrolling */
+  background: var(--panel);
+}
+
+.col-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+}
+.col-head h3 {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.col-head .count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+.col-head .count.is-cached::after {
+  content: "cached";
+  margin-left: 7px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 9px;
+  color: var(--faint);
+}
+
+.col-filters, .col-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--panel-2);
+  min-width: 0;
+  overflow: hidden;
+}
+.col-filters { border-bottom: 1px solid var(--line); }
+.col-foot    { border-top: 1px solid var(--line); }
+.col-foot .tally {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+.col-foot .btn { margin-left: auto; padding: 6px 13px; font-size: 12px; }
+
+.col-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.col-body::-webkit-scrollbar { width: 10px; }
+.col-body::-webkit-scrollbar-thumb {
+  background: var(--raised);
+  border: 3px solid var(--panel);
+  border-radius: 5px;
+}
+
+.col-empty, .loading-note {
+  padding: 18px 14px;
+  color: var(--faint);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.field-mini {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.field-mini input[type="checkbox"] { accent-color: var(--brand); margin: 0; }
+
+/* ===================================================== rows */
+
+.row-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 90ms ease;
+}
+
+/* The row's share of the column maximum, so a glance down the list reads as
+   a bar chart. Square root keeps the long tail visible next to a 4M outlier. */
+.row-btn::after {
+  content: "";
+  position: absolute;
+  left: 14px; bottom: 0;
+  height: 1px;
+  width: var(--share, 0%);
+  background: var(--dim);
+  opacity: .26;
+}
+.col:last-child .row-btn::after { background: var(--brand); opacity: .3; }
+
+.row-btn:hover { background: var(--panel-2); }
+.row-btn.active, .row-btn.picked { background: var(--raised); }
+.row-btn.active::before, .row-btn.picked::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--brand);
+}
+.row-btn.picked .name { font-weight: 500; }
+
+.row-btn .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-btn .vol {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+.chip {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color 90ms ease, background 90ms ease;
+}
+.row-btn:hover .chip { color: var(--dim); }
+.chip:hover { color: #fff; background: var(--brand); box-shadow: none; }
+
+.pick-box { flex: none; width: 13px; height: 13px; margin: 0; accent-color: var(--brand); }
+
+.col-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--dim);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.col-back:hover { color: var(--text); }
+
+.trail {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--dim);
+  min-height: 18px;
+}
+.trail .sep { color: var(--faint); }
+.trail .here { color: var(--text); }
+
+/* ===================================================== pins */
+
+.pin-row {
+  display: flex;
+  gap: 11px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--line-soft);
+  align-items: flex-start;
+}
+.pin-row:hover { background: var(--panel-2); }
+.pin-row img {
+  width: 46px; height: 46px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--raised);
+}
+.pin-main { flex: 1; min-width: 0; }
+.pin-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.pin-meta {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+/* Thin dividers: whitespace alone made saves / score / keyword read as one
+   run of text. */
+.pin-meta > span + span::before {
+  content: "";
+  display: inline-block;
+  width: 1px; height: 9px;
+  margin: 0 9px;
+  vertical-align: -1px;
+  background: var(--line);
+}
+.pin-meta > .pin-kw { color: var(--faint); }
+.pin-why {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--brand-lift);
+}
+
+/* ===================================================== progress */
+
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--brand);
+  transition: width 240ms ease;
+}
+
+.log {
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--dim);
+  white-space: pre-wrap;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); }
+td.empty { color: var(--faint); text-align: center; padding: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+@media (max-width: 1080px) {
+  body { grid-template-columns: 1fr; }
+  .rail { flex-direction: row; align-items: center; overflow-x: auto; }
+  nav { flex-direction: row; }
+  .rail-foot { display: none; }
+  .board { grid-template-columns: 1fr; height: auto; }
+  .col { max-height: 320px; }
+}
+
+/* Manual override control on each pin. ALWAYS VISIBLE: a control you cannot
+   see is a control you do not know exists. Hiding it behind hover was the
+   same mistake made earlier with the "open" chip on niches. */
+.pin-act {
+  flex: none;
+  align-self: center;
+  transition: color 90ms ease, background 90ms ease;
+}
+
+.pin-manual {
+  flex: none;
+  align-self: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 9.5px;
+}
+
+/* Review filter + bulk actions, sitting directly above the two columns. */
+.filterbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+}
+.filterbar .divider {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+}
+.filterbar .tally {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+.filterbar .btn { padding: 5px 11px; font-size: 12px; }
+
+.pin-pick {
+  flex: none;
+  align-self: center;
+  width: 14px; height: 14px;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+/* Reason filter sits inside the Rejected header, not in a strip below it:
+   an extra strip on one column only pushed the two lists out of alignment. */
+.head-select {
+  max-width: 210px;
+  height: 22px;
+  line-height: 1;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+.head-select:focus { outline: none; border-color: var(--brand); }
+.col-head .hint { font-size: 10.5px; font-family: var(--mono); }
+
+/* Controls that live inside a column header. Sized to fit the fixed 42px
+   header so one column can never start its list lower than its neighbours --
+   the reason the filter strip was removed. */
+.head-num {
+  width: 58px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+input[type="number"].head-num { min-width: 0; }
+.head-num:focus { outline: none; border-color: var(--brand); }
+.col-head .field-mini { font-size: 10.5px; }
