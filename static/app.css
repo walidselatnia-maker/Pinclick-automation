@@ -764,3 +764,29 @@ input[type="number"].head-num { min-width: 0; }
 .head-search:focus { outline: none; border-color: var(--brand); }
 .head-search::-webkit-search-cancel-button { cursor: pointer; }
 
+/* Two-line column head: title and count on the first line, every control
+   on the second, so nothing has to fight for space or get clipped. */
+.col-head.two-line {
+  height: auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.col-head.two-line .head-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 14px;
+}
+.col-head.two-line .head-row.tools {
+  height: 38px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.col-head.two-line .head-search { width: 110px; }
+.col-head.two-line .head-search:focus,
+.col-head.two-line .head-search:not(:placeholder-shown) { width: 140px; }
+.col-head.two-line .head-row.tools .field-mini:last-child { margin-left: auto; }
+
