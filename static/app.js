@@ -581,6 +581,58 @@ async function pickSub(s, refresh) {
   }
 }
 
+/* ------------------------------------------------- board export
+ *
+ * The research board itself is worth keeping: a niche list with volumes, or
+ * a keyword list before any pin has been scraped. Every level goes out with
+ * the same columns so the files can be combined.
+ */
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function boardRows(what) {
+  const b = state.board;
+  const trail = b.path.map((p) => p.name).join(' > ');
+  const rows = [];
+  if (what === 'niches' || what === 'all') {
+    for (const n of b.niches) rows.push(['niche', n.name, n.volume, n.volume_display,
+                                          '', n.has_children ? 'yes' : 'no']);
+  }
+  if (what === 'subs' || what === 'all') {
+    for (const n of b.subs) rows.push(['sub-niche', n.name, n.volume, n.volume_display,
+                                        trail, n.has_children ? 'yes' : 'no']);
+  }
+  if (what === 'keywords' || what === 'all') {
+    const parent = [trail, b.sub && b.sub.name].filter(Boolean).join(' > ');
+    for (const k of b.keywords) rows.push(['keyword', k.name, k.volume, '', parent, '']);
+  }
+  return rows;
+}
+
+$('#btn-board-export').addEventListener('click', () => {
+  const what = $('#board-export-what').value;
+  const rows = boardRows(what);
+  if (!rows.length) {
+    banner('Nothing to export yet for "' + $('#board-export-what').selectedOptions[0].text
+         + '" -- load that column first.', 'warn');
+    return;
+  }
+  const header = ['level', 'name', 'volume', 'volume_display', 'parent', 'has_children'];
+  const csv = [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'research-' + what + '-' + stamp + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  banner('Exported ' + rows.length + ' row(s) to ' + a.download, 'info');
+});
+
 function renderKeywordCol() {
   saveBoard();
   setCount('#c3-count', state.board.keywords.length, state.board.keywordsCached);

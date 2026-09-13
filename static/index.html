@@ -94,6 +94,15 @@
         <button class="btn quiet" id="btn-refresh-level"
                 title="Re-fetch this level instead of using the saved copy">Refresh</button>
         <div class="trail" id="board-crumb"></div>
+        <span class="spacer"></span>
+        <label class="field-mini">export
+          <select id="board-export-what" class="mini-num" style="width:auto">
+            <option value="niches">niches</option>
+            <option value="subs">sub-niches</option>
+            <option value="keywords">keywords</option>
+            <option value="all">all three</option>
+          </select></label>
+        <button class="btn ghost" id="btn-board-export">Export CSV</button>
       </div>
 
       <div class="board">
