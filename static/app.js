@@ -589,7 +589,10 @@ async function pickSub(s, refresh) {
  */
 
 function csvCell(v) {
-  const s = String(v ?? '');
+  let s = String(v ?? '');
+  // Names come from PinClicks, not from us. A cell starting with = + - @
+  // is a formula to Excel, so neutralise it rather than let a keyword run.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
