@@ -509,3 +509,27 @@ def wipe_history() -> dict[str, int]:
             "DELETE FROM app_state WHERE key != 'session_status'").rowcount
     return counts
 
+
+#: Saved state that is about pins rather than about the research tree.
+PIN_STATE_KEYS = ("working_keywords", "last_filter", "last_scrape",
+                  "ai_verdicts", "pin_overrides")
+
+
+def wipe_pins() -> dict[str, int]:
+    """Delete scraped pins and everything derived from them, and nothing else.
+
+    Niches, sub-niches and keyword lists stay cached, so the research board
+    is untouched -- this is "start the pin run over", not "start over".
+    """
+    counts: dict[str, int] = {}
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT value FROM browse_cache WHERE key LIKE 'pins:%'").fetchall()
+        counts["keywords"] = len(rows)
+        counts["pins"] = sum(len(json.loads(r["value"]) or []) for r in rows)
+        conn.execute("DELETE FROM browse_cache WHERE key LIKE 'pins:%'")
+        marks = ",".join("?" * len(PIN_STATE_KEYS))
+        counts["state"] = conn.execute(
+            f"DELETE FROM app_state WHERE key IN ({marks})", PIN_STATE_KEYS).rowcount
+    return counts
+

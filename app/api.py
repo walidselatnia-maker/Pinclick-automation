@@ -234,6 +234,20 @@ def reset_everything() -> dict[str, Any]:
     return {"status": "cleared", **counts}
 
 
+@router.post("/reset/pins")
+def reset_pins() -> dict[str, Any]:
+    """Wipe scraped pins and their filter results only; the research tree
+    (niches, sub-niches, keyword lists) is kept."""
+    if _scrape_state["running"]:
+        raise HTTPException(409, "A scrape is running. Stop it first.")
+    counts = db.wipe_pins()
+    _filter_state.clear()
+    _scrape_state.update(keyword="", done=0, total=0, pins=0, failed=[],
+                         finished=False, error="", results=[])
+    log.warning("Pins wiped: %s", counts)
+    return {"status": "cleared", **counts}
+
+
 # ---------------------------------------------------------------- selectors
 
 @router.get("/selectors")

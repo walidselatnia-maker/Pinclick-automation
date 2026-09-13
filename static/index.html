@@ -140,6 +140,11 @@
           <div class="col-body" id="c2-body">
             <div class="col-empty">Choose a niche.</div>
           </div>
+          <div class="col-foot">
+            <span class="hint">Tick sub-niches to scrape them as keywords.</span>
+            <span class="tally" id="sub-selected">0 selected</span>
+            <button class="btn" id="btn-scrape-subs" disabled>Scrape pins</button>
+          </div>
         </div>
 
         <div class="col">
@@ -196,6 +201,8 @@
       <div class="row" style="margin-bottom:12px">
         <button class="btn ghost" id="btn-refilter">Re-run filters</button>
         <button class="btn" id="btn-export">Export CSV</button>
+        <button class="btn ghost" id="btn-clear-pins"
+                title="Delete every scraped pin and filter result. Niches and keywords stay.">Clear pins</button>
         <a id="dl-rejected" class="btn quiet" style="display:none" download>Download rejects</a>
         <input type="search" id="review-search" placeholder="Search title or keyword"
                style="width:200px">

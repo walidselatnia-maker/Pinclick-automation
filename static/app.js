@@ -180,6 +180,22 @@ document.querySelectorAll('.btn-reset').forEach((el) => el.addEventListener('cli
   }
 }));
 
+$('#btn-clear-pins').addEventListener('click', async (e) => {
+  if (!confirm('Delete every scraped pin, filter result and override?' + '\n\n'
+             + 'Niches, sub-niches and keywords are kept.')) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const r = await api('/reset/pins', { method: 'POST' });
+    banner('Cleared ' + r.pins + ' pins from ' + r.keywords + ' keywords.', 'info');
+    await loadResults();
+  } catch (err) {
+    banner('Could not clear pins: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 /* Wait for login to complete.
  *
  * Uses /session/observe, which READS the page. It must never use
@@ -426,11 +442,23 @@ function shareScale(items) {
 }
 
 /* Build one row button. `deeper` adds the small go-deeper pill. */
-function rowButton(item, { active, onPick, onDeeper, share }) {
+function rowButton(item, { active, onPick, onDeeper, share, onTick }) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'row-btn' + (active ? ' active' : '');
+  btn.className = 'row-btn' + (active ? ' active' : '') + (item.selected ? ' picked' : '');
   if (share) btn.style.setProperty('--share', share);
+
+  if (onTick) {
+    // A tick is separate from a pick: clicking the row still opens its
+    // keywords, the box marks it for scraping as a keyword in its own right.
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.className = 'pick-box';
+    box.checked = !!item.selected;
+    box.addEventListener('click', (e) => e.stopPropagation());
+    box.addEventListener('change', () => onTick(box.checked));
+    btn.appendChild(box);
+  }
 
   const name = document.createElement('span');
   name.className = 'name';
@@ -590,12 +618,16 @@ function renderSubs() {
     rowOpts: (s) => ({
       active: state.board.sub && state.board.sub.id === s.id,
       onPick: () => pickSub(s),
+      onTick: (on) => { s.selected = on; renderSubs(); },
       // Only offered where it exists; the row itself always loads keywords.
       onDeeper: s.has_children
         ? () => { state.board.path.push({ id: s.id, name: s.name }); loadSubs(); }
         : null,
     }),
   });
+  const n = state.board.subs.filter((x) => x.selected).length;
+  $('#sub-selected').textContent = n ? n + ' selected' : '0 selected';
+  $('#btn-scrape-subs').disabled = n === 0;
 }
 
 /* ---------------- column 3: keywords ---------------- */
@@ -783,8 +815,19 @@ async function chooseAppendMode() {
   return { append: keep };
 }
 
-$('#btn-scrape-selected').addEventListener('click', async () => {
-  const keywords = selectedKeywordNames();
+/* Sub-niches are keywords too ("Pizza" has 4M searches of its own), so
+   ticking several and scraping them is the same run as scraping keywords. */
+$('#btn-scrape-subs').addEventListener('click', () => {
+  const names = state.board.subs.filter((x) => x.selected).map((x) => x.name);
+  const trail = state.board.path.map((p) => p.name).join(' > ');
+  startScrape(names, trail);
+});
+
+$('#btn-scrape-selected').addEventListener('click', () => {
+  startScrape(selectedKeywordNames(), state.board.sub ? state.board.sub.name : '');
+});
+
+async function startScrape(keywords, niche) {
   if (!keywords.length) { banner('Select some keywords first.', 'warn'); return; }
   const mode = await chooseAppendMode();
   try {
@@ -793,7 +836,7 @@ $('#btn-scrape-selected').addEventListener('click', async () => {
       body: JSON.stringify({
         keywords: keywords,
         pins_per_keyword: Number($('#kw-depth').value) || state.depth,
-        niche: state.board.sub ? state.board.sub.name : '',
+        niche: niche,
         refresh: !!state.forceRescrape,
         append: mode.append,
       }),
@@ -809,7 +852,7 @@ $('#btn-scrape-selected').addEventListener('click', async () => {
   } catch (err) {
     banner('Could not start: ' + err.message, 'error');
   }
-});
+}
 
 async function openPins(keyword) {
   banner('Opening Top Pins for "' + keyword + '" in a new tab…', 'info');
