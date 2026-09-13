@@ -161,9 +161,7 @@ $('#btn-login').addEventListener('click', async (e) => {
 
 $('#btn-reset').addEventListener('click', async (e) => {
   const ok = confirm('Delete ALL niches, keywords, pins, filter results and '
-                   + 'overrides?
-
-Your login, sites and API keys are kept. '
+                   + 'overrides?\n\nYour login, sites and API keys are kept. '
                    + 'This cannot be undone.');
   if (!ok) return;
   const btn = e.currentTarget;
