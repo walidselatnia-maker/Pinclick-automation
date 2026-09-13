@@ -383,9 +383,9 @@ state.board = {
   sub: null,         // selected column-2 row
   // Per-column view: hide rows under a volume, and sort. Never touches the
   // data itself, so export and "select all" see exactly what you see.
-  view: { c1: { min: 0, sort: 'volume-desc' },
-          c2: { min: 0, sort: 'volume-desc' },
-          c3: { min: 0, sort: 'volume-desc' } },
+  view: { c1: { min: 0, sort: 'volume-desc', q: '' },
+          c2: { min: 0, sort: 'volume-desc', q: '' },
+          c3: { min: 0, sort: 'volume-desc', q: '' } },
 };
 
 function viewOf(col) {
@@ -396,7 +396,9 @@ function viewOf(col) {
    its original order for "as listed". */
 function applyView(col, items) {
   const v = viewOf(col);
-  const out = items.filter((it) => (it.volume || 0) >= (v.min || 0));
+  const q = (v.q || '').trim().toLowerCase();
+  const out = items.filter((it) => (it.volume || 0) >= (v.min || 0)
+                                && (!q || it.name.toLowerCase().includes(q)));
   if (v.sort === 'volume-desc') out.sort((a, b) => (b.volume || 0) - (a.volume || 0));
   else if (v.sort === 'volume-asc') out.sort((a, b) => (a.volume || 0) - (b.volume || 0));
   else if (v.sort === 'name') out.sort((a, b) => a.name.localeCompare(b.name));
@@ -404,12 +406,17 @@ function applyView(col, items) {
 }
 
 function syncViewControls() {
+  $$('.col-search').forEach((el) => { el.value = viewOf(el.dataset.col).q || ''; });
   $$('.col-min').forEach((el) => { el.value = viewOf(el.dataset.col).min || ''; });
   $$('.col-sort').forEach((el) => { el.value = viewOf(el.dataset.col).sort; });
 }
 
 const RERENDER = { c1: () => renderNiches(), c2: () => renderSubs(), c3: () => renderKeywordCol() };
 
+$$('.col-search').forEach((el) => el.addEventListener('input', () => {
+  viewOf(el.dataset.col).q = el.value;
+  RERENDER[el.dataset.col]();
+}));
 $$('.col-min').forEach((el) => el.addEventListener('input', () => {
   viewOf(el.dataset.col).min = Number(el.value || 0);
   RERENDER[el.dataset.col]();
@@ -535,7 +542,7 @@ function renderNiches() {
   const shown = applyView('c1', state.board.niches);
   setCount('#c1-count', shown.length, state.board.nichesCached, state.board.niches.length);
   renderColumn('#c1-body', shown, {
-    emptyText: state.board.niches.length ? 'Nothing over that volume.' : 'No niches.',
+    emptyText: state.board.niches.length ? 'No match.' : 'No niches.',
     rowOpts: (n) => ({
       active: state.board.niche && state.board.niche.id === n.id,
       onPick: () => pickNiche(n),
@@ -614,7 +621,7 @@ function renderSubs() {
 
   renderColumn('#c2-body', shown, {
     back: back,
-    emptyText: state.board.subs.length ? 'Nothing over that volume.' : 'No sub-niches.',
+    emptyText: state.board.subs.length ? 'No match.' : 'No sub-niches.',
     rowOpts: (s) => ({
       active: state.board.sub && state.board.sub.id === s.id,
       onPick: () => pickSub(s),
@@ -719,7 +726,7 @@ function renderKeywordCol() {
   const body = $('#c3-body');
   body.innerHTML = '';
   if (!shown.length) {
-    colEmpty('#c3-body', state.board.keywords.length ? 'Nothing over that volume.' : 'No keywords.');
+    colEmpty('#c3-body', state.board.keywords.length ? 'No match.' : 'No keywords.');
     updateSelCount();
     return;
   }
