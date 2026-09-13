@@ -108,7 +108,16 @@
       <div class="board">
         <div class="col">
           <div class="col-head">
-            <h3>Niches</h3><span class="count" id="c1-count"></span>
+            <h3>Niches</h3>
+            <label class="field-mini">over
+              <input type="number" class="head-num col-min" data-col="c1" placeholder="0" min="0"></label>
+            <select class="head-select col-sort" data-col="c1" title="Sort">
+              <option value="volume-desc">volume &darr;</option>
+              <option value="volume-asc">volume &uarr;</option>
+              <option value="name">A&ndash;Z</option>
+              <option value="original">as listed</option>
+            </select>
+            <span class="count" id="c1-count"></span>
           </div>
           <div class="col-body" id="c1-body">
             <div class="col-empty">Press &ldquo;Load niches&rdquo; to begin.</div>
@@ -117,7 +126,16 @@
 
         <div class="col">
           <div class="col-head">
-            <h3>Sub-niches</h3><span class="count" id="c2-count"></span>
+            <h3>Sub-niches</h3>
+            <label class="field-mini">over
+              <input type="number" class="head-num col-min" data-col="c2" placeholder="0" min="0"></label>
+            <select class="head-select col-sort" data-col="c2" title="Sort">
+              <option value="volume-desc">volume &darr;</option>
+              <option value="volume-asc">volume &uarr;</option>
+              <option value="name">A&ndash;Z</option>
+              <option value="original">as listed</option>
+            </select>
+            <span class="count" id="c2-count"></span>
           </div>
           <div class="col-body" id="c2-body">
             <div class="col-empty">Choose a niche.</div>
@@ -129,7 +147,13 @@
             <h3>Keywords</h3>
             <label class="field-mini"><input type="checkbox" id="kw-all"> all</label>
             <label class="field-mini">over
-              <input type="number" id="kw-min" class="head-num" placeholder="0" min="0"></label>
+              <input type="number" id="kw-min" class="head-num col-min" data-col="c3" placeholder="0" min="0"></label>
+            <select class="head-select col-sort" data-col="c3" title="Sort">
+              <option value="volume-desc">volume &darr;</option>
+              <option value="volume-asc">volume &uarr;</option>
+              <option value="name">A&ndash;Z</option>
+              <option value="original">as listed</option>
+            </select>
             <span class="count" id="c3-count"></span>
           </div>
           <div class="col-body" id="c3-body">

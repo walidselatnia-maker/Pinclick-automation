@@ -334,6 +334,7 @@ function saveBoard() {
       path: state.board.path,
       niche: state.board.niche,
       sub: state.board.sub,
+      view: state.board.view,
     }));
   } catch { /* quota or private mode -- not worth failing over */ }
 }
@@ -343,7 +344,10 @@ function restoreBoard() {
     const raw = localStorage.getItem(BOARD_KEY);
     if (!raw) return false;
     const b = JSON.parse(raw);
+    const view = state.board.view;          // keep defaults for older saves
     Object.assign(state.board, b);
+    state.board.view = Object.assign(view, b.view || {});
+    syncViewControls();
     if (state.board.niches.length) renderNiches();
     if (state.board.subs.length) renderSubs();
     if (state.board.keywords.length) renderKeywordCol();
@@ -361,7 +365,43 @@ state.board = {
   path: [],          // [{id, name}] of opened niches, for the sub-niche column
   niche: null,       // selected column-1 row
   sub: null,         // selected column-2 row
+  // Per-column view: hide rows under a volume, and sort. Never touches the
+  // data itself, so export and "select all" see exactly what you see.
+  view: { c1: { min: 0, sort: 'volume-desc' },
+          c2: { min: 0, sort: 'volume-desc' },
+          c3: { min: 0, sort: 'volume-desc' } },
 };
+
+function viewOf(col) {
+  return state.board.view[col];
+}
+
+/* Apply a column's filter and sort. Returns a new array; the source keeps
+   its original order for "as listed". */
+function applyView(col, items) {
+  const v = viewOf(col);
+  const out = items.filter((it) => (it.volume || 0) >= (v.min || 0));
+  if (v.sort === 'volume-desc') out.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  else if (v.sort === 'volume-asc') out.sort((a, b) => (a.volume || 0) - (b.volume || 0));
+  else if (v.sort === 'name') out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+function syncViewControls() {
+  $$('.col-min').forEach((el) => { el.value = viewOf(el.dataset.col).min || ''; });
+  $$('.col-sort').forEach((el) => { el.value = viewOf(el.dataset.col).sort; });
+}
+
+const RERENDER = { c1: () => renderNiches(), c2: () => renderSubs(), c3: () => renderKeywordCol() };
+
+$$('.col-min').forEach((el) => el.addEventListener('input', () => {
+  viewOf(el.dataset.col).min = Number(el.value || 0);
+  RERENDER[el.dataset.col]();
+}));
+$$('.col-sort').forEach((el) => el.addEventListener('change', () => {
+  viewOf(el.dataset.col).sort = el.value;
+  RERENDER[el.dataset.col]();
+}));
 
 function colEmpty(bodyId, text) {
   $(bodyId).innerHTML = '<div class="col-empty">' + escapeHtml(text) + '</div>';
@@ -371,9 +411,9 @@ function colBusy(bodyId, text) {
   $(bodyId).innerHTML = '<div class="loading-note">' + escapeHtml(text) + '</div>';
 }
 
-function setCount(id, n, cached) {
+function setCount(id, n, cached, total) {
   const el = $(id);
-  el.textContent = n ? String(n) : '';
+  el.textContent = !n && !total ? '' : (total && total !== n ? n + '/' + total : String(n));
   el.classList.toggle('is-cached', !!cached && !!n);
 }
 
@@ -464,9 +504,10 @@ function renderTrail(path) {
 
 function renderNiches() {
   saveBoard();
-  setCount('#c1-count', state.board.niches.length, state.board.nichesCached);
-  renderColumn('#c1-body', state.board.niches, {
-    emptyText: 'No niches.',
+  const shown = applyView('c1', state.board.niches);
+  setCount('#c1-count', shown.length, state.board.nichesCached, state.board.niches.length);
+  renderColumn('#c1-body', shown, {
+    emptyText: state.board.niches.length ? 'Nothing over that volume.' : 'No niches.',
     rowOpts: (n) => ({
       active: state.board.niche && state.board.niche.id === n.id,
       onPick: () => pickNiche(n),
@@ -535,16 +576,17 @@ async function loadSubs(refresh) {
 
 function renderSubs() {
   saveBoard();
-  setCount('#c2-count', state.board.subs.length, state.board.subsCached);
+  const shown = applyView('c2', state.board.subs);
+  setCount('#c2-count', shown.length, state.board.subsCached, state.board.subs.length);
   const path = state.board.path;
   const back = path.length > 1
     ? { label: 'Back to ' + path[path.length - 2].name,
         onClick: () => { state.board.path.pop(); loadSubs(); } }
     : null;
 
-  renderColumn('#c2-body', state.board.subs, {
+  renderColumn('#c2-body', shown, {
     back: back,
-    emptyText: 'No sub-niches.',
+    emptyText: state.board.subs.length ? 'Nothing over that volume.' : 'No sub-niches.',
     rowOpts: (s) => ({
       active: state.board.sub && state.board.sub.id === s.id,
       onPick: () => pickSub(s),
@@ -585,7 +627,8 @@ async function pickSub(s, refresh) {
  *
  * The research board itself is worth keeping: a niche list with volumes, or
  * a keyword list before any pin has been scraped. Every level goes out with
- * the same columns so the files can be combined.
+ * the same columns so the files can be combined. What you see is what you
+ * get: the column's "over" filter and sort apply to the file too.
  */
 
 function csvCell(v) {
@@ -601,16 +644,16 @@ function boardRows(what) {
   const trail = b.path.map((p) => p.name).join(' > ');
   const rows = [];
   if (what === 'niches' || what === 'all') {
-    for (const n of b.niches) rows.push(['niche', n.name, n.volume, n.volume_display,
+    for (const n of applyView('c1', b.niches)) rows.push(['niche', n.name, n.volume, n.volume_display,
                                           '', n.has_children ? 'yes' : 'no']);
   }
   if (what === 'subs' || what === 'all') {
-    for (const n of b.subs) rows.push(['sub-niche', n.name, n.volume, n.volume_display,
+    for (const n of applyView('c2', b.subs)) rows.push(['sub-niche', n.name, n.volume, n.volume_display,
                                         trail, n.has_children ? 'yes' : 'no']);
   }
   if (what === 'keywords' || what === 'all') {
     const parent = [trail, b.sub && b.sub.name].filter(Boolean).join(' > ');
-    for (const k of b.keywords) rows.push(['keyword', k.name, k.volume, '', parent, '']);
+    for (const k of applyView('c3', b.keywords)) rows.push(['keyword', k.name, k.volume, '', parent, '']);
   }
   return rows;
 }
@@ -638,18 +681,19 @@ $('#btn-board-export').addEventListener('click', () => {
 
 function renderKeywordCol() {
   saveBoard();
-  setCount('#c3-count', state.board.keywords.length, state.board.keywordsCached);
+  const shown = applyView('c3', state.board.keywords);
+  setCount('#c3-count', shown.length, state.board.keywordsCached, state.board.keywords.length);
 
   const body = $('#c3-body');
   body.innerHTML = '';
-  if (!state.board.keywords.length) {
-    colEmpty('#c3-body', 'No keywords.');
+  if (!shown.length) {
+    colEmpty('#c3-body', state.board.keywords.length ? 'Nothing over that volume.' : 'No keywords.');
     updateSelCount();
     return;
   }
 
-  const share = shareScale(state.board.keywords);
-  state.board.keywords.forEach((k, i) => {
+  const share = shareScale(shown);
+  shown.forEach((k) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'row-btn' + (k.selected ? ' picked' : '');
@@ -661,7 +705,7 @@ function renderKeywordCol() {
     box.checked = !!k.selected;
     // The row itself toggles; the box is a visual echo you can also click.
     box.addEventListener('click', (e) => e.stopPropagation());
-    box.addEventListener('change', () => toggleKeyword(i, box.checked));
+    box.addEventListener('change', () => toggleKeyword(k, box.checked));
     btn.appendChild(box);
 
     const name = document.createElement('span');
@@ -683,14 +727,14 @@ function renderKeywordCol() {
     open.addEventListener('click', (e) => { e.stopPropagation(); openPins(k.name); });
     btn.appendChild(open);
 
-    btn.addEventListener('click', () => toggleKeyword(i, !k.selected));
+    btn.addEventListener('click', () => toggleKeyword(k, !k.selected));
     body.appendChild(btn);
   });
   updateSelCount();
 }
 
-function toggleKeyword(index, on) {
-  state.board.keywords[index].selected = on;
+function toggleKeyword(k, on) {
+  k.selected = on;
   renderKeywordCol();
 }
 
@@ -707,15 +751,11 @@ function updateSelCount() {
 /* "All" respects the min-volume box, so you can tick the whole worthwhile
    half of a 100-keyword list in one action instead of clicking 50 rows. */
 $('#kw-all').addEventListener('change', (e) => {
-  const min = Number($('#kw-min').value || 0);
+  const visible = new Set(applyView('c3', state.board.keywords));
   state.board.keywords.forEach((k) => {
-    k.selected = e.target.checked && (k.volume || 0) >= min;
+    if (visible.has(k)) k.selected = e.target.checked;
   });
   renderKeywordCol();
-});
-
-$('#kw-min').addEventListener('input', () => {
-  if ($('#kw-all').checked) $('#kw-all').dispatchEvent(new Event('change'));
 });
 
 /* Ask before discarding collected work.
