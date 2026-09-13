@@ -299,6 +299,18 @@ def _parse_reply(raw: str, size: int) -> dict[int, dict[str, Any]]:
     return out
 
 
+def _topic(pin: dict[str, Any], fallback: str) -> str:
+    """What a pin is judged against: the keyword it was scraped from.
+
+    Not the niche of whatever run happened most recently. The working set
+    holds pins from many keywords, and judging "fruit pizza" pins against
+    "pizza dough" -- which is what a single run-wide niche did -- rejected a
+    whole earlier keyword as off-topic the moment a new one was scraped.
+    """
+    seed = str(pin.get("seed_keyword") or "").strip()
+    return seed or fallback
+
+
 def apply_ai(
     pins: list[dict[str, Any]],
     niche: str,
@@ -309,6 +321,11 @@ def apply_ai(
 
     Only pins still UNREVIEWED are sent; anything the deterministic pass has
     already rejected is left alone.
+
+    Each pin is judged against ITS OWN seed keyword, and the verdict is cached
+    under that keyword. So scraping a new keyword never re-judges -- or even
+    re-asks about -- pins from earlier keywords: their verdicts come straight
+    back from the cache, and only the new pins cost a model call.
     """
     settings = load_settings().get("ai", {})
     batch_size = batch_size or settings.get("batch_size", 15)
@@ -324,37 +341,41 @@ def apply_ai(
 
     attempts = max(1, int(settings.get("batch_attempts", 3)))
     backoff = settings.get("batch_backoff_seconds", [5, 20, 60])
-    total_batches = (len(pending) + batch_size - 1) // batch_size
 
     from . import db
     cache: dict[str, Any] = db.get_state(VERDICT_KEY) or {}
 
     def ckey(pin: dict[str, Any]) -> str:
-        return f"{niche.lower()}|{_override_id(pin)}"
+        return f"{_topic(pin, niche).lower()}|{_override_id(pin)}"
 
     verdicts: dict[int, dict[str, Any]] = {}
     failed_batches = 0
 
-    # Reuse anything already judged for this niche, and only ask about the
-    # rest. A refresh with no new pins then costs nothing.
-    fresh = []
+    # Reuse anything already judged, and group what is left by topic so each
+    # batch is asked about one keyword. A refresh with no new pins then costs
+    # nothing, and a new keyword costs exactly its own pins.
+    fresh_by_topic: dict[str, list[dict[str, Any]]] = {}
     for pin in pending:
         hit = cache.get(ckey(pin))
         if hit is None:
-            fresh.append(pin)
+            fresh_by_topic.setdefault(_topic(pin, niche), []).append(pin)
         else:
             verdicts[id(pin)] = hit
 
     if verdicts:
         log.info("Reusing %d cached AI verdict(s)", len(verdicts))
-    if not fresh:
-        pending = []
-    else:
-        pending = fresh
+    fresh_total = sum(len(v) for v in fresh_by_topic.values())
+    if fresh_by_topic:
+        log.info("Asking the model about %d new pin(s) across %d keyword(s): %s",
+                 fresh_total, len(fresh_by_topic),
+                 ", ".join(f"{k} ({len(v)})" for k, v in fresh_by_topic.items()))
 
-    for start in range(0, len(pending), batch_size):
-        batch = pending[start:start + batch_size]
-        number = start // batch_size + 1
+    batches = [(topic, group[i:i + batch_size])
+               for topic, group in fresh_by_topic.items()
+               for i in range(0, len(group), batch_size)]
+    total_batches = len(batches)
+
+    for number, (topic, batch) in enumerate(batches, start=1):
         parsed = None
 
         # Retry the batch rather than abandoning it. A failure here is usually
@@ -365,7 +386,7 @@ def apply_ai(
             try:
                 reply = ollama_client.chat([
                     {"role": "system", "content": _SYSTEM},
-                    {"role": "user", "content": _build_prompt(niche, batch)},
+                    {"role": "user", "content": _build_prompt(topic, batch)},
                 ])
                 parsed = _parse_reply(reply, len(batch))
                 break
@@ -407,13 +428,14 @@ def apply_ai(
             pin["filter_status"] = REJECTED
             pin["reject_reason"] = "AI: " + str(verdict.get("reason", "not relevant"))
 
-    if fresh:
+    if fresh_by_topic:
         db.set_state(VERDICT_KEY, cache)
 
     if failed_batches:
         log.warning("%d batch(es) could not be reviewed; those pins stay "
                     "UNREVIEWED rather than being assumed good", failed_batches)
-    log.info("AI reviewed %d/%d pins", reviewed, len(pending))
+    log.info("AI reviewed %d/%d pins (%d from cache, %d newly judged)",
+             reviewed, len(pending), reviewed - min(reviewed, fresh_total), fresh_total)
     return pins
 
 
@@ -425,9 +447,11 @@ def apply_ai(
 #: evaporated the next time you pressed "Re-run filters" would be useless.
 OVERRIDE_KEY = "pin_overrides"
 
-#: Cached AI verdicts, keyed by niche + pin. Asking the model twice about the
-#: same pin costs money and roughly a minute a run for no new information --
-#: the verdict cannot change unless the pin or the niche does.
+#: Cached AI verdicts, keyed by the pin's own seed keyword + pin. Asking the
+#: model twice about the same pin costs money and roughly a minute a run for
+#: no new information -- the verdict cannot change unless the pin does. Keying
+#: by the pin's own keyword (not the latest run's niche) is what keeps earlier
+#: keywords untouched when a new one is scraped.
 VERDICT_KEY = "ai_verdicts"
 
 
