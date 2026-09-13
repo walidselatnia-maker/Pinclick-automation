@@ -64,6 +64,19 @@
       </div>
 
       <div class="card">
+        <h3>Start fresh</h3>
+        <p class="sub">
+          Clears everything from previous work &mdash; niches, keywords, every
+          scraped pin, filter results and overrides. Your login, sites and API
+          keys stay.
+        </p>
+        <div class="row">
+          <span class="spacer"></span>
+          <button class="btn ghost btn-reset">Clear all history</button>
+        </div>
+      </div>
+
+      <div class="card">
         <h3>Your sites</h3>
         <p class="sub">One per line. These become the columns at the end of the exported CSV.</p>
         <textarea id="sites-input" rows="6" style="width:100%;font-family:var(--mono);font-size:12px"></textarea>
@@ -155,6 +168,7 @@
                style="width:200px">
         <span class="spacer"></span>
         <span class="hint">Rules live in <code>config/rules.json</code>.</span>
+        <button class="btn ghost btn-reset">Clear all history</button>
       </div>
 
       <!-- Filter and bulk-action bar, directly above the two columns. -->
@@ -312,21 +326,6 @@
           <span class="hint" id="key-summary">No keys yet.</span>
           <span class="spacer"></span>
           <button class="btn" id="btn-test-keys">Test keys</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Clear all history</h3>
-        <p class="sub">
-          Deletes everything you have worked on: niches, sub-niches, keywords,
-          every scraped pin, filter results, AI verdicts, your accept/reject
-          overrides, and run logs. Your PinClicks login, sites and API keys
-          are kept.
-        </p>
-        <div class="row">
-          <span class="hint" id="reset-status"></span>
-          <span class="spacer"></span>
-          <button class="btn" id="btn-reset">Clear all history</button>
         </div>
       </div>
 

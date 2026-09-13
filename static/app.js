@@ -159,7 +159,7 @@ $('#btn-login').addEventListener('click', async (e) => {
 
 /* --------------------------------------------------- clear all history */
 
-$('#btn-reset').addEventListener('click', async (e) => {
+document.querySelectorAll('.btn-reset').forEach((el) => el.addEventListener('click', async (e) => {
   const ok = confirm('Delete ALL niches, keywords, pins, filter results and '
                    + 'overrides?\n\nYour login, sites and API keys are kept. '
                    + 'This cannot be undone.');
@@ -172,15 +172,13 @@ $('#btn-reset').addEventListener('click', async (e) => {
       localStorage.removeItem(BOARD_KEY);
       localStorage.removeItem(LAST_SCREEN);
     } catch { /* private mode */ }
-    $('#reset-status').textContent =
-      `Cleared ${r.pins} pins, ${r.keywords} keywords, ${r.runs} runs.`;
-    banner('History cleared. Reloading…', 'info');
+    banner(`Cleared ${r.pins} pins from ${r.keywords} keywords. Reloading…`, 'info');
     setTimeout(() => location.reload(), 800);
   } catch (err) {
     banner(`Could not clear history: ${err.message}`, 'error');
     btn.disabled = false;
   }
-});
+}));
 
 /* Wait for login to complete.
  *
