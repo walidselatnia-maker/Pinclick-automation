@@ -157,6 +157,33 @@ $('#btn-login').addEventListener('click', async (e) => {
   }
 });
 
+/* --------------------------------------------------- clear all history */
+
+$('#btn-reset').addEventListener('click', async (e) => {
+  const ok = confirm('Delete ALL niches, keywords, pins, filter results and '
+                   + 'overrides?
+
+Your login, sites and API keys are kept. '
+                   + 'This cannot be undone.');
+  if (!ok) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const r = await api('/reset', { method: 'POST' });
+    try {
+      localStorage.removeItem(BOARD_KEY);
+      localStorage.removeItem(LAST_SCREEN);
+    } catch { /* private mode */ }
+    $('#reset-status').textContent =
+      `Cleared ${r.pins} pins, ${r.keywords} keywords, ${r.runs} runs.`;
+    banner('History cleared. Reloading…', 'info');
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    banner(`Could not clear history: ${err.message}`, 'error');
+    btn.disabled = false;
+  }
+});
+
 /* Wait for login to complete.
  *
  * Uses /session/observe, which READS the page. It must never use

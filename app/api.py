@@ -218,6 +218,22 @@ async def session_close() -> dict[str, str]:
     return {"status": "closed"}
 
 
+# ---------------------------------------------------------------- reset
+
+@router.post("/reset")
+def reset_everything() -> dict[str, Any]:
+    """Wipe all history: niches, keywords, pins, filter results, AI verdicts,
+    overrides, runs and logs. The login, sites and API keys survive."""
+    if _scrape_state["running"]:
+        raise HTTPException(409, "A scrape is running. Stop it first.")
+    counts = db.wipe_history()
+    _filter_state.clear()
+    _scrape_state.update(keyword="", done=0, total=0, pins=0, failed=[],
+                         finished=False, error="", results=[])
+    log.warning("History wiped: %s", counts)
+    return {"status": "cleared", **counts}
+
+
 # ---------------------------------------------------------------- selectors
 
 @router.get("/selectors")

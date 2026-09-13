@@ -484,3 +484,28 @@ def cache_clear(prefix: str = "") -> int:
             "DELETE FROM browse_cache WHERE key LIKE ?", (f"{prefix}%",)
         )
         return cur.rowcount
+
+
+def wipe_history() -> dict[str, int]:
+    """Delete everything you have worked on: runs, niches, keywords, pins,
+    jobs, logs, the browse cache, and every saved state except the login.
+
+    Deliberately kept: the browser session (on disk, not in here), your
+    sites and API keys (config/), and rule presets -- those are settings you
+    wrote, not history you accumulated.
+    """
+    counts: dict[str, int] = {}
+    with connect() as conn:
+        # Scraped pins live in the browse cache under "pins:<keyword>", one
+        # entry per keyword, so that is where the honest count comes from.
+        rows = conn.execute(
+            "SELECT value FROM browse_cache WHERE key LIKE 'pins:%'").fetchall()
+        counts["keywords"] = len(rows)
+        counts["pins"] = sum(len(json.loads(r["value"]) or []) for r in rows)
+        # runs cascades to niches, keywords, jobs and run_log.
+        counts["runs"] = conn.execute("DELETE FROM runs").rowcount
+        counts["cache"] = conn.execute("DELETE FROM browse_cache").rowcount
+        counts["state"] = conn.execute(
+            "DELETE FROM app_state WHERE key != 'session_status'").rowcount
+    return counts
+
