@@ -1075,9 +1075,16 @@ $('#btn-export').addEventListener('click', async (e) => {
   btn.disabled = true;
   banner('Building the CSV…', 'info');
   try {
+    const shown = state.reviewShown || {};
     const result = await api('/export', {
       method: 'POST',
-      body: JSON.stringify({ label: state.board.sub ? state.board.sub.name : 'keywords' }),
+      body: JSON.stringify({
+        label: state.board.sub ? state.board.sub.name : 'keywords',
+        // The saves / score / search filters and the sort live on this
+        // screen, so the server is told exactly which pins, in which order.
+        accepted_ids: (shown.accepted || []).map(pinId),
+        rejected_ids: (shown.rejected || []).map(pinId),
+      }),
     });
 
     // Export means export: the accepted file downloads straight away rather
@@ -1366,10 +1373,14 @@ function pinRow(p, rejected) {
 
 /* Overrides are stored server-side, so they survive Re-run filters, a rules
    change and a restart. */
-async function overridePin(pin, status) {
-  const id = (pin.pin_url && pin.pin_url !== 'N/A')
+function pinId(pin) {
+  return (pin.pin_url && pin.pin_url !== 'N/A')
     ? pin.pin_url.toLowerCase()
     : String(pin.spy_title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function overridePin(pin, status) {
+  const id = pinId(pin);
   try {
     await api('/filter/override', {
       method: 'POST',
@@ -1433,6 +1444,9 @@ function renderReview() {
 
   setCount('#accepted-count', accepted.length, false);
   setCount('#rejected-count', rejected.length, false);
+
+  // What is on screen is what Export writes: same rows, same order.
+  state.reviewShown = { accepted: accepted, rejected: rejected };
 
   fillColumn('#accepted-body', accepted, false,
              q ? 'No accepted pins match.' : 'Run a scrape, then Re-run filters.');

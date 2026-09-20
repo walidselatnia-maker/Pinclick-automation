@@ -838,6 +838,18 @@ def run_filters(req: FilterRequest) -> dict[str, Any]:
 
 class ExportRequest(BaseModel):
     label: str = "keywords"
+    #: Exactly the pins the Review screen is showing, in its order. The
+    #: saves / score thresholds, the search box and the sort all live in
+    #: the browser, so without this the CSV ignored every one of them and
+    #: shipped the whole accepted column. None means "not sent" (old client).
+    accepted_ids: list[str] | None = None
+    rejected_ids: list[str] | None = None
+
+
+def _pick(rows: list[dict[str, Any]], ids: list[str]) -> list[dict[str, Any]]:
+    """Rows whose id is in ``ids``, in the order of ``ids``."""
+    by_id = {filtering._override_id(r): r for r in rows}
+    return [by_id[i] for i in ids if i in by_id]
 
 
 @router.post("/export")
@@ -848,8 +860,17 @@ def do_export(req: ExportRequest) -> dict[str, Any]:
     accepted = _filter_state.get("accepted")
     rejected = _filter_state.get("rejected") or []
     rows = accepted if accepted else _current_pins()
+
+    if req.accepted_ids is not None:
+        # Review shows accepted and unreviewed together in one column.
+        pool = (_filter_state.get("accepted") or []) + \
+               (_filter_state.get("unreviewed") or []) or _current_pins()
+        rows = _pick(pool, req.accepted_ids)
+    if req.rejected_ids is not None:
+        rejected = _pick(rejected, req.rejected_ids)
+
     if not rows:
-        raise HTTPException(400, "Nothing to export - run a scrape first")
+        raise HTTPException(400, "Nothing to export - no pins match the current filters")
 
     run = db.latest_run()
     paths = export_mod.export_run(
